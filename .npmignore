@@ -1,0 +1,28 @@
+# Don't publish source TypeScript (only dist/ is needed)
+src/
+
+# Don't publish original JS sources
+js/
+
+# Copyrighted GBA BIOS binary
+resources/bios.bin
+
+# Original JS files (replaced by TypeScript dist/)
+resources/console.js
+resources/xhr.js
+
+# Build artifacts
+node_modules/
+*.tsbuildinfo
+
+# Test files (already excluded from dist/ via tsconfig)
+*.test.ts
+
+# Dev config
+tsconfig.json
+.gitignore
+.git/
+
+# OS files
+.DS_Store
+Thumbs.db

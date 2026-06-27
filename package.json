@@ -1,0 +1,69 @@
+{
+  "name": "gba-ts",
+  "version": "2.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Game Boy Advance emulator written in TypeScript — SDK for headless usage and browser frontend",
+  "license": "BSD-2-Clause",
+  "author": {
+    "name": "Jeffrey Pfau",
+    "url": "https://github.com/endrift/gbajs"
+  },
+  "contributors": [
+    "GBA.js v2 contributors"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/endrift/gbajs"
+  },
+  "keywords": [
+    "gba",
+    "gameboy",
+    "gameboy-advance",
+    "emulator",
+    "typescript",
+    "sdk",
+    "retro",
+    "canvas",
+    "web-audio"
+  ],
+  "main": "dist/sdk.js",
+  "types": "dist/sdk.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/sdk.d.ts",
+      "import": "./dist/sdk.js"
+    },
+    "./browser": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js"
+    },
+    "./save-backend": {
+      "types": "./dist/save-backend.d.ts",
+      "import": "./dist/save-backend.js"
+    }
+  },
+  "files": [
+    "dist",
+    "resources/bg.png",
+    "resources/crash.png",
+    "resources/main.css",
+    "resources/console.css",
+    "index.html",
+    "console.html",
+    "debugger.html",
+    "README.md",
+    "COPYING"
+  ],
+  "scripts": {
+    "dev": "bun serve dist",
+    "build": "tsc",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/bun": "^1.2.0"
+  }
+}

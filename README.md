@@ -1,65 +1,139 @@
 GBA.js
 ======
-**Version 1.1-git — Copyright © 2012 – 2013 Jeffrey Pfau**
 
-GBA.js is a Game Boy Advance emulator written from scratch to employ HTML5 technologies like Canvas and Web Audio. It uses no plugins, and is designed to run on cutting edge web browsers. It is hosted [on GitHub](https://github.com/endrift/gbajs) and is made available under the 2-clause BSD license. The most recent version can be found at [http://endrift.github.io/gbajs/](http://endrift.github.io/gbajs/).
+**GBA.js** is a Game Boy Advance emulator written in TypeScript that uses HTML5 Canvas and Web Audio for rendering and sound. It requires no plugins and runs in modern browsers.
+
+> **Original work by Jeffrey Pfau** — [endrift/gbajs](https://github.com/endrift/gbajs).  
+> This fork (v2.x) modernizes the codebase: strict TypeScript, ES modules, pluggable persistence, and an SDK for headless usage.
+
+## Quick Start
+
+### Browser
+
+```bash
+npm install && npm run build && npm run dev
+```
+
+Open `http://localhost:8080`, select a GBA ROM. The BIOS is loaded automatically.
+
+### SDK (Bun / Node headless)
+
+```ts
+import { GBA, MemorySaveBackend } from 'gbajs';
+
+const gba = new GBA();
+gba.setBios(biosBuffer);
+gba.setRom(romBuffer);
+
+for (let i = 0; i < 1000; i++) gba.step();
+```
+
+### SDK with persistence
+
+```ts
+import { GBA, FsSaveBackend } from 'gbajs';
+
+const gba = new GBA({
+  saveBackend: new FsSaveBackend('./saves'),
+});
+gba.setBios(biosBuf);
+await gba.setRomAsync(romBuf); // loads existing savedata automatically
+
+gba.advanceFrame();
+gba.storeSavedata(); // written to ./saves/ every VBlank
+```
+
+## Persistence Backends
+
+| Backend | Storage | Environment | Use Case |
+|---------|---------|-------------|----------|
+| `IDBSaveBackend` *(default)* | IndexedDB | Browser | Large saves, savestates |
+| `FileSystemSaveBackend` | Local folder | Chrome/Edge | Direct file access |
+| `LocalStorageSaveBackend` | localStorage | Browser | Lightweight fallback |
+| `FsSaveBackend` | Filesystem | Bun/Node | Server-side / CLI |
+| `MemorySaveBackend` | In-memory | Any | Testing, ephemeral |
+
+The default browser backend is **IndexedDB** — no localStorage size limits.  
+To use a local folder, click **"Select Save Folder"** in the UI (supports Chrome 86+).
+
+## Architecture
+
+```
+src/
+├── sdk.ts              # Clean SDK entry
+├── gba.ts              # GameBoyAdvance orchestrator (config injection)
+├── save-backend.ts     # Persistence interface + 5 implementations
+├── core.ts / arm.ts / thumb.ts   # CPU / ARM / Thumb
+├── mmu.ts / io.ts / irq.ts       # Memory / I/O / Interrupts
+├── audio.ts / video.ts / video/  # Audio / Video rendering
+├── keypad.ts / sio.ts            # Input / Serial I/O
+├── savedata.ts / gpio.ts         # SRAM/Flash/EEPROM / RTC
+├── console.ts                    # Debugger tools
+├── main.ts                       # Browser entry point (UI bindings)
+└── *.test.ts                     # Unit tests (Bun)
+```
+
+## Scripts
+
+```bash
+npm run dev         # Start dev server (bun serve dist)
+npm run build       # Compile TypeScript (tsc)
+npm test            # Run tests (bun test)
+npm run typecheck   # Type-only check (tsc --noEmit)
+```
 
 ## Browser Compatibility
-The current version of GBA.js is known to work in the following web browsers:
 
-* Safari 6.0 or newer
-* Chrome 22 or newer
-* Firefox 25 or newer (slow)
+Modern browsers with Canvas, Web Audio, File API, and ES modules:
 
-The following web browsers also work, but will have degraded feature sets:
+- Chrome 86+
+- Edge 86+
+- Safari 15+
+- Firefox 90+
 
-* Firefox 15 or newer (no sound, slow)
-* Opera 12.1x or newer (no sound, slow)
-* Internet Explorer 10 or newer (no sound, slow, pixelated display does not work)
-* Chrome 20, 21 (pixelated display does not work)
+> File System Access API (`showDirectoryPicker`) is supported in Chromium-based browsers (Chrome/Edge/Opera) for local folder persistence.
 
-The following browsers will not work:
+## Features
 
-* Safari 5.1.x or older (no File API for uploading games into JavaScript)
-* Firefox 14 or older (no DataView, used for memory)
-* Internet Explorer 9 or older
-
-All other browsers are untested.
-
-## Game Compatibility
-Please see the [compatibility list on the GitHub wiki](https://github.com/endrift/gbajs/wiki/Compatibility-List) for a list of tested games. Note that GBA.js is tuned for commercial games, and is currently lacking good support for homebrew games.
-
-## Feature List
-Currently, every part of the Game Boy Advance hardware, save for some lesser used features and the link cable are implemented.
-
-The emulator also has these features:
-
-* Downloadable and uploadable savegames
-* Screenshots
-* Pausing the emulation
-* Support for gamepaks that contain a realtime clock (e.g. Pokemon Ruby and Sapphire)
-
-Features that may be implemented in the future include:
-
-* Savestates
-* Remappable controls
-* Gamepad support
-* Link cable over Web Sockets
-* Cheat code support
-* Fullscreen support
-* Support for gamepaks that have other sensors (e.g. WarioWare Twisted!, Boktai)
+- Full GBA hardware emulation (CPU, PPU, APU, DMA, timers, interrupts)
+- ARM and Thumb instruction sets
+- Software and Web Worker rendering
+- Savegame download / upload / auto-persist
+- Savestate freeze / defrost with PNG stealth export
+- Screenshots
+- RTC support (Pokémon Ruby/Sapphire/Emerald)
+- Gamepad support
+- Fullscreen
+- Remappable controls (via keypad.ts)
+- Debugger with memory/palette/tile viewers
 
 ## License
-Copyright © 2012 – 2013, Jeffrey Pfau
-All rights reserved.
+
+### Original work
+
+Copyright © 2012 – 2013, Jeffrey Pfau. All rights reserved.
+
+### Modifications (v2.x)
+
+This fork is a substantial rewrite:
+
+- Vanilla JS → strict TypeScript with ES modules
+- Global variables → dependency injection (`GBAConfig`)
+- Prototype inheritance → ES6 classes
+- Browser-only → SDK for headless Bun/Node usage
+- localStorage → pluggable persistence (IDB, File System API, filesystem)
+- Zero tests → unit tests (Bun runner)
+
+All modifications are released under the same 2-clause BSD license.
+
+### License text
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, this
+- Redistributions of source code must retain the above copyright notice, this
   list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
+- Redistributions in binary form must reproduce the above copyright notice,
   this list of conditions and the following disclaimer in the documentation
   and/or other materials provided with the distribution.
 
