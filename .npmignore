@@ -14,9 +14,11 @@ resources/xhr.js
 # Build artifacts
 node_modules/
 *.tsbuildinfo
+*.map
 
 # Test files (already excluded from dist/ via tsconfig)
 *.test.ts
+*.test.d.ts
 
 # Dev config
 tsconfig.json

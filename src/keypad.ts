@@ -35,7 +35,8 @@ export class GameBoyAdvanceKeypad {
 
 	currentDown: number = 0x03FF;
 	eatInput: boolean = false;
-	core: any; // Set externally by GameBoyAdvance
+	// Set externally by GameBoyAdvance
+	core!: object;
 
 	gamepads: Gamepad[] = [];
 

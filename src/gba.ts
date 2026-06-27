@@ -7,6 +7,7 @@ import { GameBoyAdvanceVideo } from './video.js';
 import { GameBoyAdvanceKeypad } from './keypad.js';
 import { GameBoyAdvanceSIO } from './sio.js';
 import { SaveBackend, MemorySaveBackend, IDBSaveBackend } from './save-backend.js';
+import type { CartInfo, FrostState } from './types.js';
 
 declare global {
   interface Window {
@@ -24,22 +25,7 @@ export interface GBAConfig {
   throttle?: number;
 }
 
-export interface CartInfo {
-  title: string | null;
-  code: string | null;
-  maker: string | null;
-  memory: ArrayBuffer;
-  saveType: string | null;
-}
-
-export interface FrostState {
-  cpu: ReturnType<ARMCore['freeze']>;
-  mmu: ReturnType<GameBoyAdvanceMMU['freeze']>;
-  irq: ReturnType<GameBoyAdvanceInterruptHandler['freeze']>;
-  io: ReturnType<GameBoyAdvanceIO['freeze']>;
-  audio: ReturnType<GameBoyAdvanceAudio['freeze']>;
-  video: ReturnType<GameBoyAdvanceVideo['freeze']>;
-}
+export type { CartInfo, FrostState } from './types.js';
 
 function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -133,33 +119,33 @@ export class GameBoyAdvance {
     }
 
     // Wire up the dependency graph
-    (this.cpu as any).mmu = this.mmu;
-    (this.cpu as any).irq = this.irq;
+    this.cpu.mmu = this.mmu;
+    this.cpu.irq = this.irq;
 
-    (this.mmu as any).cpu = this.cpu;
-    (this.mmu as any).core = this;
+    this.mmu.cpu = this.cpu;
+    this.mmu.core = this;
 
-    (this.irq as any).cpu = this.cpu;
-    (this.irq as any).io = this.io;
-    (this.irq as any).audio = this.audio;
-    (this.irq as any).video = this.video;
-    (this.irq as any).core = this;
+    this.irq.cpu = this.cpu;
+    this.irq.io = this.io;
+    this.irq.audio = this.audio;
+    this.irq.video = this.video;
+    this.irq.core = this;
 
-    (this.io as any).cpu = this.cpu;
-    (this.io as any).audio = this.audio;
-    (this.io as any).video = this.video;
-    (this.io as any).keypad = this.keypad;
-    (this.io as any).sio = this.sio;
-    (this.io as any).core = this;
+    this.io.cpu = this.cpu;
+    this.io.audio = this.audio;
+    this.io.video = this.video;
+    this.io.keypad = this.keypad;
+    this.io.sio = this.sio;
+    this.io.core = this;
 
-    (this.audio as any).cpu = this.cpu;
-    (this.audio as any).core = this;
+    this.audio.cpu = this.cpu;
+    this.audio.core = this;
 
-    (this.video as any).cpu = this.cpu;
-    (this.video as any).core = this;
+    this.video.cpu = this.cpu;
+    this.video.core = this;
 
-    (this.keypad as any).core = this;
-    (this.sio as any).core = this;
+    this.keypad.core = this;
+    this.sio.core = this;
 
     this.keypad.registerHandlers();
     this.doStep = this.waitFrame.bind(this);
