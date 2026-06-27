@@ -1,5 +1,5 @@
-import { ARMCoreArm } from './arm';
-import { ARMCoreThumb } from './thumb';
+import { ARMCoreArm } from './arm.js';
+import { ARMCoreThumb } from './thumb.js';
 
 // Forward reference - will be properly typed when mmu.ts and irq.ts are available
 // These interfaces must be structurally compatible with arm.ts/thumb.ts CPU interface

@@ -395,6 +395,7 @@ export class GameBoyAdvanceOBJ {
     this.oam = oam;
     this.index = index;
     this.drawScanline = this.drawScanlineNormal;
+    this.pushPixel = GameBoyAdvanceSoftwareRenderer.pushPixel;
   }
 
   drawScanlineNormal(backing: any, y: number, yOff: number, start: number, end: number): void {

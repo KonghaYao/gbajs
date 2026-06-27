@@ -30,8 +30,9 @@ export {
   IDBSaveBackend,
   FsSaveBackend,
   FileSystemSaveBackend,
+  GameLibrary,
 } from './save-backend.js';
-export type { SavedataBuffer, SavestateBlob } from './save-backend.js';
+export type { SavedataBuffer, SavestateBlob, GameEntry, GameIndex } from './save-backend.js';
 
 // Re-export core sub-modules for advanced usage
 export { ARMCore } from './core.js';

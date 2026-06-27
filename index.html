@@ -1,44 +1,414 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>GBA.js</title>
-<link rel="stylesheet" href="resources/main.css">
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
+body {
+  display: flex; align-items: center; justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Game container — shortest edge fill ── */
+#game-container {
+  position: relative;
+  width:  min(100vw, calc(100vh * 3 / 2));
+  height: min(100vh, calc(100vw * 2 / 3));
+  overflow: hidden;
+}
+
+#screen {
+  display: block; width: 100%; height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #000;
+}
+
+/* ── Touch controls ── */
+#touch-controls {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 10;
+  opacity: 0; transition: opacity 0.4s;
+}
+#touch-controls.active { opacity: 1; }
+
+.touch-btn {
+  position: absolute; pointer-events: auto;
+  border: none; cursor: pointer; user-select: none;
+  -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  outline: none; touch-action: none;
+  background: rgba(0,0,0,0.45);
+  color: rgba(255,255,255,0.85);
+  font-weight: 600; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.20);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  transition: background 0.08s, transform 0.08s;
+}
+.touch-btn:active, .touch-btn.pressed {
+  background: rgba(0,0,0,0.65);
+  transform: scale(0.92);
+}
+
+/* D-pad */
+.touch-btn[data-btn="up"]    { width: min(28%, 52px); height: min(22%, 40px); left: 9%;  top: 52%; border-radius: 14px 14px 4px 4px; }
+.touch-btn[data-btn="down"]  { width: min(28%, 52px); height: min(22%, 40px); left: 9%;  top: 78%; border-radius: 4px 4px 14px 14px; }
+.touch-btn[data-btn="left"]  { width: min(20%, 38px); height: min(28%, 52px); left: 2%;  top: 64%; border-radius: 14px 4px 4px 14px; }
+.touch-btn[data-btn="right"] { width: min(20%, 38px); height: min(28%, 52px); left: 18%; top: 64%; border-radius: 4px 14px 14px 4px; }
+
+/* A / B */
+.touch-btn[data-btn="a"] { width: min(18%, 44px); height: min(28%, 44px); right: 6%;  top: 56%; border-radius: 50%; font-size: 17px; }
+.touch-btn[data-btn="b"] { width: min(18%, 44px); height: min(28%, 44px); right: 20%; top: 66%; border-radius: 50%; font-size: 17px; }
+
+/* Start / Select */
+.touch-btn[data-btn="select"] { width: min(16%, 52px); height: min(11%, 24px); left: 32%; top: 92%; border-radius: 14px; font-size: 10px; }
+.touch-btn[data-btn="start"]  { width: min(16%, 52px); height: min(11%, 24px); left: 52%; top: 92%; border-radius: 14px; font-size: 10px; }
+
+/* L / R */
+.touch-btn[data-btn="l"] { width: min(20%, 52px); height: min(10%, 20px); left: 2%;  top: 3%; border-radius: 6px 6px 12px 12px; font-size: 11px; }
+.touch-btn[data-btn="r"] { width: min(20%, 52px); height: min(10%, 20px); right: 2%; top: 3%; border-radius: 6px 6px 12px 12px; font-size: 11px; }
+
+/* ── Key guide ── */
+#key-guide {
+  position: fixed; inset: 0; z-index: 150;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.82);
+  opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+}
+#key-guide.show { opacity: 1; visibility: visible; }
+#key-guide .panel {
+  background: #1a1a2e; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 28px 32px; max-width: 320px; width: 90%;
+  font-size: 13px; color: #ccc;
+}
+#key-guide .panel h2 { font-size: 17px; margin: 0 0 16px; color: #e0e0e0; font-weight: 600; }
+#key-guide .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+#key-guide .key { background: rgba(255,255,255,0.10); padding: 2px 8px; border-radius: 5px; font-family: monospace; font-size: 12px; color: #fff; }
+#key-guide .gba { color: #7c3aed; font-weight: 600; }
+#key-guide .close-btn { display: block; margin: 16px auto 0; padding: 8px 24px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: none; color: #999; cursor: pointer; font-size: 13px; }
+#key-guide .close-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
+
+/* ── Settings ── */
+#settings-panel {
+  position: fixed; inset: 0; z-index: 150;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.82);
+  opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+}
+#settings-panel.show { opacity: 1; visibility: visible; }
+#settings-panel .panel {
+  background: #1a1a2e; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 28px 32px; max-width: 300px; width: 90%;
+  font-size: 13px; color: #ccc;
+}
+#settings-panel .panel h2 { font-size: 17px; margin: 0 0 20px; color: #e0e0e0; font-weight: 600; }
+#settings-panel label { display: block; margin-bottom: 16px; color: #aaa; }
+#settings-panel input[type=range] { width: 100%; accent-color: #7c3aed; margin-top: 4px; }
+#settings-panel .vol-row { display: flex; justify-content: space-between; align-items: center; }
+#settings-panel .vol-row span { font-family: monospace; color: #7c3aed; }
+#settings-panel .btn-row { display: flex; gap: 8px; margin-top: 16px; }
+#settings-panel .btn-row button { flex: 1; padding: 8px 0; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: none; color: #999; cursor: pointer; font-size: 13px; }
+#settings-panel .btn-row button:hover { color: #fff; background: rgba(255,255,255,0.06); }
+#settings-panel .btn-row button.mute-btn { color: #ef4444; }
+#settings-panel .btn-row button.mute-btn.muted { color: #4ade80; }
+
+/* ── Savestates ── */
+#saves-panel {
+  position: fixed; inset: 0; z-index: 160;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.82);
+  opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+}
+#saves-panel.show { opacity: 1; visibility: visible; }
+#saves-panel .panel {
+  background: #1a1a2e; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 24px 28px; max-width: 400px; width: 90%;
+  font-size: 13px; color: #ccc; max-height: 80vh; overflow-y: auto;
+}
+#saves-panel .panel h2 { font-size: 17px; margin: 0 0 14px; color: #e0e0e0; font-weight: 600; }
+.slot-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px; margin: 4px 0;
+  border-radius: 8px; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.slot-thumb {
+  width: 64px; height: 43px; border-radius: 4px;
+  background: #000; object-fit: cover; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.slot-info { flex: 1; min-width: 0; }
+.slot-label { color: #e0e0e0; font-size: 13px; font-weight: 500; }
+.slot-ts { color: #555; font-size: 11px; margin-top: 2px; }
+.slot-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.slot-actions button {
+  padding: 4px 10px; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px; background: none; color: #999;
+  cursor: pointer; font-size: 11px;
+}
+.slot-actions button:hover { color: #fff; background: rgba(255,255,255,0.06); }
+.slot-actions button.save-slot { color: #7c3aed; }
+.slot-actions button.save-slot:hover { background: rgba(124,58,237,0.15); }
+#saves-panel .btn-row button { flex: 1; padding: 8px 0; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: none; color: #999; cursor: pointer; font-size: 13px; }
+#saves-panel .btn-row button:hover { color: #fff; background: rgba(255,255,255,0.06); }
+.slot-hint { color: #555; font-size: 11px; text-align: center; margin-top: 8px; }
+
+/* ── Overlay ── */
+#overlay {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.88);
+  z-index: 100;
+  transition: opacity 0.4s, visibility 0.4s;
+}
+#overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+#overlay .dialog {
+  text-align: center;
+  padding: 48px 40px;
+  border-radius: 16px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  max-width: 340px;
+}
+#overlay .dialog h1 {
+  font-size: 28px; font-weight: 600; color: #e0e0e0; margin-bottom: 4px;
+}
+#overlay .dialog p {
+  font-size: 13px; color: #666; margin-bottom: 28px;
+}
+#overlay .dialog hr {
+  border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 20px 0;
+}
+#overlay .dialog .hint {
+  font-size: 11px; color: #444; margin: 10px 0 0; line-height: 1.5;
+}
+#overlay .btn {
+  display: block; width: 100%; margin: 0 auto;
+  padding: 12px 0; border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 500; cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+#overlay .btn:hover { transform: translateY(-1px); }
+#overlay .btn:active { transform: translateY(0); }
+#overlay .btn-primary {
+  background: #7c3aed; color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+}
+#overlay .btn-primary:active { transform: translateY(0); }
+
+/* ── Game list ── */
+.game-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; margin: 2px 0;
+  border-radius: 8px; cursor: pointer; transition: background 0.15s;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04);
+}
+.game-item:hover { background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.25); }
+.game-title { color: #e0e0e0; font-size: 13px; font-weight: 500; flex: 1; }
+.game-code { color: #7c3aed; font-size: 11px; font-family: monospace; margin: 0 10px; }
+.game-date { color: #555; font-size: 11px; }
+
+#overlay .btn-accent {
+  background: rgba(74, 222, 128, 0.12); color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  margin-bottom: 6px;
+}
+#overlay .btn-accent:hover {
+  background: rgba(74, 222, 128, 0.2);
+  box-shadow: 0 4px 14px rgba(74, 222, 128, 0.15);
+}
+#save-dir-indicator {
+  display: block; margin-bottom: 8px;
+  font-size: 13px; color: #4ade80; font-weight: 600;
+}
+#overlay input[type=file] { display: none; }
+
+/* ── Toolbar ── */
+#toolbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 8px;
+  padding: 12px;
+  background: linear-gradient(rgba(0,0,0,0.7), transparent);
+  z-index: 50;
+  opacity: 0; transition: opacity 0.3s;
+}
+#toolbar:hover, #toolbar.visible { opacity: 1; }
+#toolbar button {
+  padding: 6px 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  color: #ccc; font-size: 13px; cursor: pointer;
+  transition: background 0.15s;
+}
+#toolbar button:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+/* ── Crash ── */
+#crash-overlay {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.9); z-index: 200;
+}
+#crash-overlay img { max-width: 80vw; max-height: 80vh; }
+</style>
 </head>
 <body>
-<canvas id="screen" width="480" height="320"></canvas>
-<section id="controls">
-	<div id="preload">
-		<button class="bigbutton" id="select" onclick="document.getElementById('loader').click()">SELECT</button>
-		<input id="loader" type="file" accept=".gba" onchange="run(this.files[0])">
-		<button onclick="document.getElementById('saveloader').click()">Upload Savegame</button>
-		<input id="saveloader" type="file" onchange="uploadSavedataPending(this.files[0])">
-		<hr>
-		<button id="select-folder-btn" onclick="selectSaveFolder()">📁 Select Save Folder</button>
-		<br><small id="save-dir-indicator" style="color:#888;display:none"></small>
-	</div>
-	<div id="ingame" class="hidden">
-		<button id="pause" class="bigbutton" onclick="togglePause()">PAUSE</button>
-		<button class="bigbutton" onclick="reset()">RESET</button>
-		<button onclick="gba.downloadSavedata()">Download Savegame</button>
-		<button onclick="screenshot()">Screenshot</button>
-		<label id="pixelated">
-			<input type="checkbox" onchange="setPixelated(this.checked)">
-			<p>Pixelated</p>
-		</label>
-		<div id="sound">
-			<input type="checkbox" checked onchange="gba.audio.masterEnable = this.checked">
-			<p>Sound</p>
-			<input type="range" min="0" max="1" value="1" step="any" onchange="setVolume(this.value)" oninput="setVolume(this.value)">
-		</div>
-		<p id="openDebug" onclick="enableDebug()">Debugger</p>
-	</div>
-</section>
-<ul id="links">
-	<li><a href="http://github.com/endrift/gbajs/">Fork me on GitHub!</a></li>
-	<li><a href="https://github.com/endrift/gbajs/wiki/Compatibility-List">Compatibility list</a></li>
-</ul>
-<footer>&copy; 2012 – 2013 <a href="http://endrift.com/">Jeffrey Pfau</a></footer>
+
+<!-- Save notification -->
+<div id="save-toast" style="position:fixed;top:50px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.18);color:#4ade80;padding:6px 18px;border-radius:20px;font-size:13px;font-weight:500;z-index:60;opacity:0;transition:opacity 0.3s;pointer-events:none;border:1px solid rgba(74,222,128,0.2);">💾 Saved</div>
+
+<div id="game-container">
+  <canvas id="screen" width="480" height="320"></canvas>
+  <div id="touch-controls">
+    <!-- D-pad -->
+    <button class="touch-btn" data-btn="up">▲</button>
+    <button class="touch-btn" data-btn="down">▼</button>
+    <button class="touch-btn" data-btn="left">◀</button>
+    <button class="touch-btn" data-btn="right">▶</button>
+    <!-- A / B -->
+    <button class="touch-btn" data-btn="a">A</button>
+    <button class="touch-btn" data-btn="b">B</button>
+    <!-- Start / Select -->
+    <button class="touch-btn" data-btn="select">SELECT</button>
+    <button class="touch-btn" data-btn="start">START</button>
+    <!-- L / R -->
+    <button class="touch-btn" data-btn="l">L</button>
+    <button class="touch-btn" data-btn="r">R</button>
+  </div>
+</div>
+
+<!-- Settings -->
+<div id="settings-panel">
+  <div class="panel">
+    <h2>⚙ Settings</h2>
+    <label>Volume
+      <input type="range" min="-4" max="0" step="0.1" value="0" oninput="updateVolume(this.value)" id="vol-slider">
+      <div class="vol-row"><span>0%</span><span id="vol-label">100%</span></div>
+    </label>
+    <div class="btn-row">
+      <button class="mute-btn" id="mute-btn" onclick="toggleMute()">MUTE ALL</button>
+    </div>
+    <div class="btn-row">
+      <button id="psg-btn" onclick="togglePsg()">PSG ON</button>
+      <button id="dma-btn" onclick="toggleDma()">DMA ON</button>
+    </div>
+    <div class="btn-row">
+      <button onclick="openSaves()" style="width:100%;">💾 Savestates</button>
+    </div>
+    <label style="margin-bottom:8px;">Speed
+      <div class="btn-row" style="margin-top:4px;">
+        <button id="spd-0.5" onclick="setSpeed(0.5)">0.5x</button>
+        <button id="spd-1" onclick="setSpeed(1)" style="color:#7c3aed;">1x</button>
+        <button id="spd-2" onclick="setSpeed(2)">2x</button>
+        <button id="spd-4" onclick="setSpeed(4)">4x</button>
+        <button id="spd-max" onclick="setSpeed(0)">MAX</button>
+      </div>
+    </label>
+    <div class="btn-row">
+      <button onclick="closeSettings()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Key guide -->
+<div id="key-guide">
+  <div class="panel">
+    <h2>🎮 Key Bindings</h2>
+    <div class="row"><span class="gba">D-pad</span> <span class="key">↑ ↓ ← →</span></div>
+    <div class="row"><span class="gba">A</span> <span class="key">Z</span></div>
+    <div class="row"><span class="gba">B</span> <span class="key">X</span></div>
+    <div class="row"><span class="gba">L</span> <span class="key">A</span></div>
+    <div class="row"><span class="gba">R</span> <span class="key">S</span></div>
+    <div class="row"><span class="gba">Start</span> <span class="key">Enter</span></div>
+    <div class="row"><span class="gba">Select</span> <span class="key">Backspace</span></div>
+    <div class="row"><span class="gba">Toolbar</span> <span class="key">Esc</span></div>
+    <button class="close-btn" onclick="toggleKeyGuide()">CLOSE</button>
+  </div>
+</div>
+
+<!-- Savestates -->
+<div id="saves-panel">
+  <div class="panel" style="max-width:400px;">
+    <h2>💾 Savestates</h2>
+    <div id="slots"></div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button onclick="closeSaves()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ROM selection dialog -->
+<div id="overlay">
+  <div class="dialog">
+    <h1>GBA.js</h1>
+    <p>Game Boy Advance Emulator</p>
+
+    <button class="btn btn-accent" onclick="selectSaveFolder()">
+      📁 Select Save Folder
+    </button>
+    <span id="save-dir-indicator"></span>
+    <p class="hint">Pick a local folder — ROMs and saves live there.</p>
+
+    <!-- Game list -->
+    <div id="game-list-container" style="display:none; margin: 16px 0; text-align:left; max-height:200px; overflow-y:auto;">
+      <div id="game-list-empty" style="display:none; color:#666; font-size:12px; text-align:center; padding: 12px;">No games yet — select a ROM below</div>
+      <div id="game-list"></div>
+    </div>
+
+    <hr>
+
+    <button class="btn btn-primary" onclick="document.getElementById('loader').click()">
+      SELECT ROM
+    </button>
+    <input id="loader" type="file" accept=".gba" onchange="run(this.files[0])">
+  </div>
+</div>
+
+<!-- In-game toolbar -->
+<div id="toolbar">
+  <button onclick="toggleSettings()">SET</button>
+  <button onclick="toggleKeyGuide()">KEYS</button>
+  <button onclick="forceSave()">SAVE</button>
+  <button onclick="togglePause()" id="btn-pause">PAUSE</button>
+  <button onclick="resetGame()">RESET</button>
+  <button onclick="screenshot()">SCREENSHOT</button>
+</div>
+
+<!-- Crash display -->
+<div id="crash-overlay" style="display:none">
+  <img src="resources/crash.png">
+</div>
+
+<script>
+// Fallback stubs — replaced by main.js module once loaded
+window.selectSaveFolder = function() { alert('Loading, please wait...'); };
+window.run = function() { alert('Loading, please wait...'); };
+window.togglePause = function() {};
+window.resetGame = function() {};
+window.forceSave = function() {};
+window.screenshot = function() {};
+window.toggleKeyGuide = function() { document.getElementById('key-guide')?.classList.toggle('show'); };
+window.toggleSettings = function() { document.getElementById('settings-panel')?.classList.toggle('show'); };
+window.updateVolume = function() {};
+window.toggleMute = function() {};
+window.togglePsg = function() {};
+window.toggleDma = function() {};
+window.setSpeed = function() {};
+window.launchGame = function() {};
+window.openSaves = function() {};
+window.closeSaves = function() { document.getElementById('saves-panel')?.classList.remove('show'); };
+window.saveSlot = function() {};
+window.loadSlot = function() {};
+window.closeSettings = function() { document.getElementById('settings-panel')?.classList.remove('show'); };
+</script>
 <script type="module" src="dist/main.js"></script>
 </body>
 </html>

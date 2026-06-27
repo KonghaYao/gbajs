@@ -1,9 +1,9 @@
 // MMU (Memory Management Unit) for GBA.js emulator
 // Handles memory mapping, DMA, save types, and wait states.
 
-import { MemoryView, FlashSavedata, SRAMSavedata, EEPROMSavedata } from './savedata';
-import { GameBoyAdvanceGPIO } from './gpio';
-import { Serializer } from './util';
+import { MemoryView, FlashSavedata, SRAMSavedata, EEPROMSavedata } from './savedata.js';
+import { GameBoyAdvanceGPIO } from './gpio.js';
+import { Serializer } from './util.js';
 
 // ---- Interfaces ----
 

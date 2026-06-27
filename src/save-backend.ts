@@ -423,18 +423,52 @@ export class FileSystemSaveBackend implements SaveBackend {
     this.dirHandle = handle;
   }
 
-  /** 获取或创建子文件（自动在目录下创建 getFileHandle） */
-  private async getFileHandle(name: string, create = true): Promise<FileSystemFileHandle | null> {
+  /** 遍历路径获取文件句柄，支持子目录 (e.g. "abc/game.gba") */
+  private async getFileHandle(path: string, create = true): Promise<FileSystemFileHandle | null> {
     if (!this.dirHandle) return null;
+    const parts = path.split('/');
+    const fileName = parts.pop()!;
+    let dir: FileSystemDirectoryHandle = this.dirHandle;
+
+    for (const part of parts) {
+      if (!part) continue;
+      try {
+        dir = await dir.getDirectoryHandle(part, { create });
+      } catch {
+        return null;
+      }
+    }
+
     try {
-      return await this.dirHandle.getFileHandle(name, { create });
+      return await dir.getFileHandle(fileName, { create });
+    } catch {
+      return null;
+    }
+  }
+
+  /** 写入任意文件（自动创建父目录） */
+  async writeFile(path: string, data: ArrayBuffer): Promise<void> {
+    const handle = await this.getFileHandle(path);
+    if (!handle) throw new Error('Cannot create file: ' + path);
+    const writable = await handle.createWritable();
+    await writable.write(data);
+    await writable.close();
+  }
+
+  /** 读取任意文件 */
+  async readFile(path: string): Promise<ArrayBuffer | null> {
+    const handle = await this.getFileHandle(path, false);
+    if (!handle) return null;
+    try {
+      const file = await handle.getFile();
+      return await file.arrayBuffer();
     } catch {
       return null;
     }
   }
 
   private keyToFilename(key: string): string {
-    return key.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return key.replace(/[^a-zA-Z0-9._\/-]/g, '_');
   }
 
   async loadSavedata(key: string): Promise<SavedataBuffer | null> {
@@ -511,6 +545,92 @@ export class FileSystemSaveBackend implements SaveBackend {
   /** 当前关联的目录名（用于 UI 显示） */
   get directoryName(): string {
     return this.dirHandle?.name ?? 'unknown';
+  }
+}
+
+// ============================================================================
+// GameLibrary — manages index.json and ROM subfolders
+// ============================================================================
+
+export interface GameEntry {
+  hash: string;
+  title: string;
+  code: string;
+  added: number;
+  lastPlayed: number;
+  size: number;
+}
+
+export interface GameIndex {
+  version: 1;
+  games: Record<string, GameEntry>;
+  lastPlayed: string | null;
+}
+
+export class GameLibrary {
+  private fs: FileSystemSaveBackend;
+  private index: GameIndex | null = null;
+  static readonly INDEX_PATH = 'index.json';
+
+  constructor(fs: FileSystemSaveBackend) {
+    this.fs = fs;
+  }
+
+  async load(): Promise<GameIndex> {
+    if (this.index) return this.index;
+    try {
+      const raw = await this.fs.readFile(GameLibrary.INDEX_PATH);
+      if (raw) {
+        this.index = JSON.parse(new TextDecoder().decode(raw)) as GameIndex;
+        return this.index!;
+      }
+    } catch { /* 文件不存在或损坏 */ }
+    
+    this.index = { version: 1, games: {}, lastPlayed: null };
+    return this.index;
+  }
+
+  async save(): Promise<void> {
+    if (!this.index) return;
+    const json = JSON.stringify(this.index, null, 2);
+    await this.fs.writeFile(GameLibrary.INDEX_PATH, new TextEncoder().encode(json).buffer);
+  }
+
+  getEntry(hash: string): GameEntry | null {
+    return this.index?.games[hash] ?? null;
+  }
+
+  async addGame(hash: string, title: string, code: string, size: number): Promise<GameEntry> {
+    const idx = await this.load();
+    const existing = idx.games[hash];
+    const entry: GameEntry = {
+      hash,
+      title,
+      code,
+      size,
+      added: existing?.added ?? Date.now(),
+      lastPlayed: Date.now(),
+    };
+    idx.games[hash] = entry;
+    idx.lastPlayed = hash;
+    await this.save();
+    return entry;
+  }
+
+  async markPlayed(hash: string): Promise<void> {
+    const idx = await this.load();
+    const entry = idx.games[hash];
+    if (entry) {
+      entry.lastPlayed = Date.now();
+      idx.lastPlayed = hash;
+      await this.save();
+    }
+  }
+
+  /** 列出所有游戏，按最后游玩时间倒序 */
+  async listGames(): Promise<GameEntry[]> {
+    const idx = await this.load();
+    return Object.values(idx.games).sort((a, b) => b.lastPlayed - a.lastPlayed);
   }
 }
 

@@ -67,8 +67,14 @@ export class GameBoyAdvance {
   keypad: GameBoyAdvanceKeypad;
   sio: GameBoyAdvanceSIO;
 
-  /** Persistence backend. Defaults to IDBSaveBackend in browser, MemorySaveBackend in non-browser. */
+  /** Persistence backend. Defaults to MemorySaveBackend — must call setSaveFolder() for persistence. */
   saveBackend: SaveBackend;
+
+  /** Hash of currently loaded ROM — used as subfolder for saves. */
+  gameHash: string | null = null;
+
+  /** Called after successful save persistence */
+  onSave: (() => void) | null = null;
 
   /** Frame scheduler function. */
   private scheduler: (fn: () => void) => void;
@@ -99,11 +105,9 @@ export class GameBoyAdvance {
     this.keypad = new GameBoyAdvanceKeypad();
     this.sio = new GameBoyAdvanceSIO();
 
-    // Persistence backend
+    // Persistence backend — defaults to in-memory (no persistence until folder selected)
     if (config?.saveBackend) {
       this.saveBackend = config.saveBackend;
-    } else if (isBrowser()) {
-      this.saveBackend = new IDBSaveBackend();
     } else {
       this.saveBackend = new MemorySaveBackend();
     }
@@ -189,7 +193,7 @@ export class GameBoyAdvance {
       this.setCanvasDirect(this.indirectCanvas);
       const targetContext = canvas.getContext('2d')!;
       this.video.drawCallback = function () {
-        targetContext.drawImage(self.indirectCanvas!, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        targetContext.drawImage(self.indirectCanvas!, 0, 0, canvas.width, canvas.height);
       };
     } else {
       this.setCanvasDirect(canvas);
@@ -286,7 +290,9 @@ export class GameBoyAdvance {
     this.step();
     if (this.seenSave) {
       if (!this.mmu.saveNeedsFlush()) {
-        this.storeSavedata();
+        this.storeSavedata().catch(function (e) {
+          // 静默失败，已在 storeSavedata 内 Warn
+        });
         this.seenSave = false;
       } else {
         this.mmu.flushSave();
@@ -438,12 +444,14 @@ export class GameBoyAdvance {
     }
   }
 
-  storeSavedata(): void {
+  async storeSavedata(): Promise<void> {
     const sram = this.mmu.save;
     if (!sram) return;
-    const key = this.SYS_ID + '.' + this.mmu.cart!.code;
+    const prefix = this.gameHash ? this.gameHash + '/' : '';
+    const key = prefix + this.SYS_ID + '.' + this.mmu.cart!.code;
     try {
-      this.saveBackend.storeSavedata(key, sram.buffer.slice(0));
+      await this.saveBackend.storeSavedata(key, sram.buffer.slice(0));
+      if (this.onSave) this.onSave();
     } catch (e) {
       this.WARN('Could not store savedata! ' + e);
     }
@@ -456,7 +464,8 @@ export class GameBoyAdvance {
     if (this.saveBackend instanceof IDBSaveBackend) return;
 
     // Legacy localStorage sync path:
-    const key = this.SYS_ID + '.' + this.mmu.cart!.code;
+    const prefix = this.gameHash ? this.gameHash + '/' : '';
+    const key = prefix + this.SYS_ID + '.' + this.mmu.cart!.code;
     if (isBrowser()) {
       const data = localStorage.getItem(key);
       if (data) {
@@ -467,7 +476,8 @@ export class GameBoyAdvance {
 
   /** Asynchronously retrieve savedata from backend. */
   async retrieveSavedata(): Promise<boolean> {
-    const key = this.SYS_ID + '.' + this.mmu.cart!.code;
+    const prefix = this.gameHash ? this.gameHash + '/' : '';
+    const key = prefix + this.SYS_ID + '.' + this.mmu.cart!.code;
     try {
       const data = await this.saveBackend.loadSavedata(key);
       if (data) {

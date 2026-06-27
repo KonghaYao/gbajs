@@ -97,7 +97,9 @@ export class GameBoyAdvanceAudio {
   sampleMask: number = 0;
 
   masterEnable = true;
-  masterVolume = 1.0;
+  masterVolume = 0x400; // full volume (normalization now prevents clipping)
+  mutePsg = false;     // mute PSG channels (1-4: square, wave, noise)
+  muteDma = false;     // DMA channels (A, B: PCM samples)
 
   SOUND_MAX = 0x400;
   FIFO_MAX = 0x200;
@@ -813,7 +815,7 @@ export class GameBoyAdvanceAudio {
     let channel: SquareChannel;
 
     channel = this.squareChannels[0];
-    if (channel.playing) {
+    if (channel.playing && !this.mutePsg) {
       sample = channel.sample * this.soundRatio * this.PSG_MAX;
       if (this.enabledLeft & 0x1) {
         sampleLeft += sample;
@@ -824,7 +826,7 @@ export class GameBoyAdvanceAudio {
     }
 
     channel = this.squareChannels[1];
-    if (channel.playing) {
+    if (channel.playing && !this.mutePsg) {
       sample = channel.sample * this.soundRatio * this.PSG_MAX;
       if (this.enabledLeft & 0x2) {
         sampleLeft += sample;
@@ -834,7 +836,7 @@ export class GameBoyAdvanceAudio {
       }
     }
 
-    if (this.playingChannel3) {
+    if (this.playingChannel3 && !this.mutePsg) {
       sample = this.channel3Sample * this.soundRatio * this.channel3Volume * this.PSG_MAX;
       if (this.enabledLeft & 0x4) {
         sampleLeft += sample;
@@ -844,7 +846,7 @@ export class GameBoyAdvanceAudio {
       }
     }
 
-    if (this.playingChannel4) {
+    if (this.playingChannel4 && !this.mutePsg) {
       sample = this.channel4.sample * this.soundRatio * this.PSG_MAX;
       if (this.enabledLeft & 0x8) {
         sampleLeft += sample;
@@ -854,7 +856,7 @@ export class GameBoyAdvanceAudio {
       }
     }
 
-    if (this.enableChannelA) {
+    if (this.enableChannelA && !this.muteDma) {
       sample = this.fifoASample * this.FIFO_MAX * this.ratioChannelA;
       if (this.enableLeftChannelA) {
         sampleLeft += sample;
@@ -864,7 +866,7 @@ export class GameBoyAdvanceAudio {
       }
     }
 
-    if (this.enableChannelB) {
+    if (this.enableChannelB && !this.muteDma) {
       sample = this.fifoBSample * this.FIFO_MAX * this.ratioChannelB;
       if (this.enableLeftChannelB) {
         sampleLeft += sample;
@@ -875,9 +877,10 @@ export class GameBoyAdvanceAudio {
     }
 
     const samplePointer = this.samplePointer;
-    sampleLeft *= this.masterVolume / this.SOUND_MAX;
+    // Normalize (max 4 PSG + 2 DMA ≈ 1536) then apply volume
+    sampleLeft = sampleLeft / 0x600 * (this.masterVolume / 0x400);
     sampleLeft = Math.max(Math.min(sampleLeft, 1), -1);
-    sampleRight *= this.masterVolume / this.SOUND_MAX;
+    sampleRight = sampleRight / 0x600 * (this.masterVolume / 0x400);
     sampleRight = Math.max(Math.min(sampleRight, 1), -1);
     if (this.buffers) {
       this.buffers[0][samplePointer] = sampleLeft;
