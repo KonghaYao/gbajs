@@ -8,6 +8,8 @@
     "rootDir": "./src",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "declaration": true,
+    "declarationMap": true,
+    "stripInternal": true,
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true

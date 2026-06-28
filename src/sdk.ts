@@ -38,13 +38,7 @@ export type { SavedataBuffer, SavestateBlob, GameEntry, GameIndex } from './save
 export { ARMCore } from './core.js';
 export { ARMCoreArm } from './arm.js';
 export { ARMCoreThumb } from './thumb.js';
-export {
-  GameBoyAdvanceMMU,
-  MemoryBlock,
-  ROMView,
-  BIOSView,
-  BadMemory,
-} from './mmu.js';
+export { GameBoyAdvanceMMU } from './mmu.js';
 export { GameBoyAdvanceIO } from './io.js';
 export { GameBoyAdvanceInterruptHandler } from './irq.js';
 export { GameBoyAdvanceAudio } from './audio.js';
@@ -56,11 +50,11 @@ export {
   GameBoyAdvancePalette,
   GameBoyAdvanceOBJ,
 } from './video/software.js';
-export { GameBoyAdvanceRenderProxy, MemoryProxy } from './video/proxy.js';
+export { GameBoyAdvanceRenderProxy } from './video/proxy.js';
 export { GameBoyAdvanceKeypad } from './keypad.js';
 export { GameBoyAdvanceSIO } from './sio.js';
 export { GameBoyAdvanceGPIO, GameBoyAdvanceRTC } from './gpio.js';
-export { SRAMSavedata, FlashSavedata, EEPROMSavedata, MemoryView } from './savedata.js';
+export { SRAMSavedata, FlashSavedata, EEPROMSavedata } from './savedata.js';
 
 // Re-export utilities
-export { hex, Serializer, SerializerPointer } from './util.js';
+export { hex, Serializer } from './util.js';

@@ -256,11 +256,7 @@ export class FlashSavedata extends MemoryView {
 	}
 }
 
-// DMA interface used by EEPROMSavedata
-interface DMAInfo {
-	enable: boolean;
-	count: number;
-}
+import type { DMAInfo } from './types.js';
 
 interface MMUForEEPROM {
 	core: {

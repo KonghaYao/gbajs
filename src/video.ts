@@ -2,6 +2,7 @@
 // Handles scanline timing, hblank/vblank, and delegates rendering to SoftwareRenderer
 
 import { GameBoyAdvanceSoftwareRenderer } from './video/software.js';
+import type { DMAInfo } from './types.js';
 
 interface VideoCPU {
   cycles: number;
@@ -230,5 +231,9 @@ export class GameBoyAdvanceVideo {
   finishDraw(pixelData: ImageData): void {
     this.context.putImageData(pixelData, 0, 0);
     this.drawCallback();
+  }
+
+  scheduleVCaptureDma(_dma: DMAInfo, _info: DMAInfo): void {
+    // Video capture DMA not implemented (used by Game Boy Player / capture hardware)
   }
 }

@@ -4,6 +4,7 @@
 import { MemoryView, FlashSavedata, SRAMSavedata, EEPROMSavedata } from './savedata.js';
 import { GameBoyAdvanceGPIO } from './gpio.js';
 import { Serializer } from './util.js';
+import type { DMAInfo, CartInfo, MemoryRegion } from './types.js';
 
 // ---- Interfaces ----
 
@@ -12,25 +13,6 @@ interface PageInfo {
 	thumb: any[];
 	arm: any[];
 	invalid: boolean;
-}
-
-/** DMA channel state. Set externally by the IO/IRQ layer. */
-interface DMAInfo {
-	source: number;
-	dest: number;
-	count: number;
-	nextSource: number;
-	nextDest: number;
-	nextCount: number;
-	srcControl: number;
-	dstControl: number;
-	repeat: boolean;
-	width: number;
-	drq: boolean;
-	timing: number;
-	doIrq: boolean;
-	enable: boolean;
-	nextIRQ: number;
 }
 
 /** The part of the CPU that mmu.ts depends on. Set externally by gba.ts. */
@@ -60,36 +42,6 @@ interface Core {
 		DMA3CNT_HI: number;
 	};
 	WARN(msg: string): void;
-}
-
-/** Every entry in the MMU region table conforms to this interface. */
-interface MemoryRegion {
-	load8(offset: number): number;
-	load16(offset: number): number;
-	load32(offset: number): number;
-	loadU8(offset: number): number;
-	loadU16(offset: number): number;
-	store8(offset: number, value: number): void;
-	store16(offset: number, value: number): void;
-	store32(offset: number, value: number): void;
-	invalidatePage(address: number): void;
-	replaceData?(memory: ArrayBuffer, offset?: number): void;
-	ICACHE_PAGE_BITS: number;
-	PAGE_MASK: number;
-	icache: any[];
-	buffer?: ArrayBuffer;
-	view?: DataView;
-	mask?: number;
-	registers?: Int16Array | Uint16Array;
-}
-
-/** Cart info object returned by loadRom. */
-interface CartInfo {
-	title: string | null;
-	code: string | null;
-	maker: string | null;
-	memory: ArrayBuffer;
-	saveType: string | null;
 }
 
 /** The save object (FlashSavedata | SRAMSavedata | EEPROMSavedata). */

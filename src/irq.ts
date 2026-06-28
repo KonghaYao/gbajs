@@ -1,27 +1,10 @@
 import { Serializer } from './util.js';
 import { MemoryBlock } from './mmu.js';
+import type { DMAInfo } from './types.js';
 
 // ============================================================================
 // Forward reference interfaces for modules set externally by GameBoyAdvance
 // ============================================================================
-
-interface DMAInfo {
-  source: number;
-  dest: number;
-  count: number;
-  nextSource: number;
-  nextDest: number;
-  nextCount: number;
-  srcControl: number;
-  dstControl: number;
-  repeat: boolean;
-  width: number;
-  drq: boolean;
-  timing: number;
-  doIrq: boolean;
-  enable: boolean;
-  nextIRQ: number;
-}
 
 interface TimerInfo {
   reload: number;
@@ -52,7 +35,7 @@ interface IRQCPU {
   switchExecMode(newMode: number): void;
   raiseIRQ(): void;
   raiseTrap(): void;
-  instruction: { writesPC: number | boolean } | null;
+  instruction: { writesPC?: number | boolean } | null;
   MODE_SUPERVISOR: number;
   MODE_IRQ: number;
   MODE_SYSTEM: number;
@@ -71,6 +54,8 @@ interface IRQIO {
   TM3CNT_LO: number;
   IF: number;
   IME: number;
+  FIFO_A_LO: number;
+  FIFO_B_LO: number;
 }
 
 interface IRQAudio {
@@ -85,6 +70,7 @@ interface IRQAudio {
   sampleFifoB(): void;
   updateTimers(): void;
   nextEvent: number;
+  scheduleFIFODma(number: number, info: DMAInfo): void;
 }
 
 interface IRQVideo {
@@ -94,11 +80,12 @@ interface IRQVideo {
   hblankIRQ: number;
   vblankIRQ: number;
   vcounterIRQ: number;
+  scheduleVCaptureDma(dma: DMAInfo, info: DMAInfo): void;
 }
 
 interface IRQCore {
   mmu: {
-    bios: { real: boolean };
+    bios: { real: boolean } | null;
     memory: (MemoryBlock | null)[];
     REGION_WORKING_IRAM: number;
     REGION_WORKING_RAM: number;
@@ -434,7 +421,7 @@ export class GameBoyAdvanceInterruptHandler {
   }
 
   swi(opcode: number): void {
-    if (this.core.mmu.bios.real) {
+    if (this.core.mmu.bios?.real) {
       this.cpu.raiseTrap();
       return;
     }

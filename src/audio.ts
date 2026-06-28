@@ -8,23 +8,7 @@ declare global {
   }
 }
 
-interface DMAInfo {
-  source: number;
-  dest: number;
-  count: number;
-  srcControl: number;
-  dstControl: number;
-  nextSource: number;
-  nextDest: number;
-  nextCount: number;
-  repeat: boolean;
-  width: number;
-  drq: boolean;
-  timing: number;
-  doIrq: boolean;
-  enable: boolean;
-  nextIRQ: number;
-}
+import type { DMAInfo } from './types.js';
 
 interface AudioCPU {
   cycles: number;

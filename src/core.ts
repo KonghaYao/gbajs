@@ -1,25 +1,9 @@
 import { ARMCoreArm } from './arm.js';
 import { ARMCoreThumb } from './thumb.js';
+import type { DMAInfo } from './types.js';
 
 // Forward reference - will be properly typed when mmu.ts and irq.ts are available
 // These interfaces must be structurally compatible with arm.ts/thumb.ts CPU interface
-interface DMAInfo {
-  source: number;
-  dest: number;
-  count: number;
-  nextSource: number;
-  nextDest: number;
-  nextCount: number;
-  srcControl: number;
-  dstControl: number;
-  repeat: boolean;
-  width: number;
-  drq: boolean;
-  timing: number;
-  doIrq: boolean;
-  enable: boolean;
-  nextIRQ: number;
-}
 
 interface MMUInterface {
   BASE_OFFSET: number;
@@ -47,6 +31,11 @@ interface MMUInterface {
   adjustTimings(value: number): void;
   badMemory: { loadU16(offset: number): number };
   scheduleDma(number: number, info: DMAInfo): void;
+  // Properties used by audio/video modules
+  BASE_IO: number;
+  serviceDma(num: number, info: DMAInfo): void;
+  runHblankDmas(): void;
+  runVblankDmas(): void;
 }
 
 interface IRQInterface {
@@ -68,6 +57,17 @@ interface IRQInterface {
   dismissIRQs(v: number): void;
   masterEnable(v: number): void;
   halt(): void;
+  // Properties used by MMU module
+  dma: DMAInfo[];
+  audio: { scheduleFIFODma(number: number, info: DMAInfo): void };
+  video: { scheduleVCaptureDma(dma: DMAInfo, info: DMAInfo): void };
+  // Properties used by audio/video modules
+  pollNextEvent(): void;
+  io: { FIFO_A_LO: number; FIFO_B_LO: number };
+  raiseIRQ(type: number): void;
+  IRQ_VBLANK: number;
+  IRQ_HBLANK: number;
+  IRQ_VCOUNTER: number;
 }
 
 interface MemoryView {
@@ -94,7 +94,7 @@ interface InstructionFn {
   execMode?: number;
 }
 
-interface FrostState {
+interface CPUFrostState {
   gprs: number[];
   mode: number;
   cpsrI: number;
@@ -293,7 +293,7 @@ export class ARMCore {
     };
   }
 
-  freeze(): FrostState {
+  freeze(): CPUFrostState {
     return {
       gprs: [
         this.gprs[0],
@@ -357,7 +357,7 @@ export class ARMCore {
     };
   }
 
-  defrost(frost: FrostState): void {
+  defrost(frost: CPUFrostState): void {
     this.instruction = null;
 
     this.page = null;

@@ -57,6 +57,7 @@
   ],
   "scripts": {
     "dev": "bun serve dist",
+    "prebuild": "rm -rf dist",
     "build": "tsc",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
